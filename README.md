@@ -408,43 +408,6 @@ Alembic provides a reproducible mechanism for tracking and applying database sch
 
 ---
 
-## 📁 Folder Structure
-
-```text
-ngo-lms/
-├── backend/
-│   ├── app/
-│   │   ├── core/               # Config, database, security, RBAC dependencies
-│   │   ├── models/             # SQLAlchemy models
-│   │   ├── schemas/            # Pydantic schemas
-│   │   ├── routers/            # FastAPI routers
-│   │   ├── services/           # Business logic
-│   │   ├── middleware/         # Custom middleware
-│   │   ├── utils/              # Shared helpers
-│   │   ├── seed.py             # Seeds Head Admin
-│   │   └── main.py             # FastAPI entrypoint
-│   ├── alembic/                # Database migrations
-│   ├── uploads/                # Local file storage
-│   ├── requirements.txt
-│   └── .env.example
-│
-├── frontend/
-│   ├── src/
-│   │   ├── api/                # Axios instance + API wrappers
-│   │   ├── components/
-│   │   │   ├── layout/         # Sidebar, Navbar, DashboardLayout
-│   │   │   └── ui/             # Reusable UI components
-│   │   ├── context/            # AuthContext
-│   │   ├── pages/              # Application pages
-│   │   └── styles/             # Tailwind entrypoint
-│   ├── index.html
-│   ├── vite.config.js
-│   ├── tailwind.config.js
-│   └── .env.example
-│
-└── README.md
-```
-
 ---
 
 ## 📋 Prerequisites
@@ -587,6 +550,7 @@ The demo seed includes:
 * Forum posts
 * Blog posts
 * Demo users
+
 
 The command is safe to run more than once because it checks for an existing marker user before creating demo data.
 
