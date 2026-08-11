@@ -45,11 +45,7 @@ The database is **SQLite by default** (a single file, zero setup). If you ever w
 
 ---
 
-# 🏗️ Technical Architecture
 
-NGO LMS follows a modular full-stack architecture designed around separation of concerns, role-based security, database abstraction, storage abstraction, and deployment portability.
-
-The application is divided into the following major layers:
 
 ---
 
