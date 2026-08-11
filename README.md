@@ -51,36 +51,6 @@ NGO LMS follows a modular full-stack architecture designed around separation of 
 
 The application is divided into the following major layers:
 
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                         NGO LMS                             │
-├─────────────────────────────────────────────────────────────┤
-│                    Presentation Layer                       │
-│             React 19 + Vite + Tailwind CSS                 │
-├─────────────────────────────────────────────────────────────┤
-│                     API Communication                       │
-│                Axios + TanStack React Query                │
-├─────────────────────────────────────────────────────────────┤
-│                      API Layer                              │
-│                       FastAPI                              │
-├─────────────────────────────────────────────────────────────┤
-│               Authentication & Authorization                │
-│                 JWT + bcrypt + RBAC                         │
-├─────────────────────────────────────────────────────────────┤
-│                    Service Layer                            │
-│       Auth · Users · Courses · Resources · Donations        │
-├─────────────────────────────────────────────────────────────┤
-│                    Data Access Layer                        │
-│                    SQLAlchemy ORM                           │
-├─────────────────────────────────────────────────────────────┤
-│                   Database Layer                            │
-│                SQLite / PostgreSQL                          │
-├─────────────────────────────────────────────────────────────┤
-│                    Storage Layer                            │
-│           Local Storage / Future S3 / Cloudinary            │
-└─────────────────────────────────────────────────────────────┘
-```
-
 ---
 
 ## 🔗 Architecture Documentation
