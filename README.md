@@ -1,453 +1,171 @@
 # NGO LMS
 
-A production-ready Learning Management System built for NGOs — course delivery, role-based staff tools, fundraising management, and a responsive UI that works on everything from a phone to a large monitor.
+A production-ready Learning Management System built for NGOs — course delivery,
+role-based staff tools, and a responsive UI that works on everything from a phone
+to a large monitor.
 
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 
-* [Project Overview](#project-overview)
-* [Technical Architecture](#technical-architecture)
-
-  * [Architecture Overview](#architecture-overview)
-  * [Architecture Documentation](#architecture-documentation)
-  * [Architecture Layers](#architecture-layers)
-  * [Role-Based Access Control](#role-based-access-control)
-  * [Data & Storage Architecture](#data--storage-architecture)
-  * [Deployment Architecture](#deployment-architecture)
-* [Features](#features)
-* [Technology Stack](#technology-stack)
-* [Folder Structure](#folder-structure)
-* [Prerequisites](#prerequisites)
-* [Environment Variables](#environment-variables)
-* [Running Locally](#running-locally)
-* [Demo Data](#demo-data)
-* [Troubleshooting](#troubleshooting)
-* [Database Migrations](#database-migrations)
-* [Deployment Guide](#deployment-guide)
-
-  * [Localhost](#1-localhost)
-  * [Render](#2-render)
-  * [Railway](#3-railway)
-  * [Replit](#4-replit)
-* [API Documentation](#api-documentation)
-* [Future Improvements](#future-improvements)
+- [Project Overview](#project-overview)
+- [Features](#features)
+- [Technology Stack](#technology-stack)
+- [Folder Structure](#folder-structure)
+- [Prerequisites](#prerequisites)
+- [Environment Variables](#environment-variables)
+- [Running Locally](#running-locally)
+- [Database Migrations](#database-migrations)
+- [Deployment Guide](#deployment-guide)
+  - [Localhost](#1-localhost)
+  - [Render](#2-render)
+  - [Railway](#3-railway)
+  - [Replit](#4-replit)
+- [API Documentation](#api-documentation)
+- [Future Improvements](#future-improvements)
 
 ---
 
-## 📌 Project Overview
+## Project Overview
 
-NGO LMS lets an organization run courses for students while giving staff (Head Admin, Moderators, Instructors) the tools to manage users, content, and resources. Donors get read-only visibility into published courses.
+NGO LMS lets an organization run courses for students while giving staff (Head
+Admin, Moderators, Instructors) the tools to manage users, content, and
+resources. Donors get read-only visibility into published courses. The whole
+app is designed to run **unchanged** across localhost, Render, Railway, and
+Replit — only environment variables change between environments.
 
-The whole application is designed to run **unchanged** across localhost, Render, Railway, and Replit — only environment variables change between environments.
+The database is **SQLite by default** (a single file, zero setup). If you ever
+want Postgres or another database, you only change the `DATABASE_URL` — no
+code changes required, since the backend talks to the database exclusively
+through SQLAlchemy.
 
-The database is **SQLite by default** (a single file, zero setup). If you ever want PostgreSQL or another database, you only change the `DATABASE_URL` — no code changes required, since the backend talks to the database exclusively through SQLAlchemy.
+## Features
 
----
+- **Authentication** — JWT-based login/signup, password hashing (bcrypt),
+  a "forgot password" page that directs users to contact an administrator
+  (no email sending in this phase).
+- **RBAC** — Five roles: Head Admin, Moderator, Instructor, Student, Donor.
+  - The Head Admin account is **seeded automatically** on first run.
+  - Only the Head Admin can create Moderators and assign their permissions
+    (manage users, manage courses, manage resources, manage enrollments,
+    view reports).
+  - Students self-register. Any user can later be promoted to another role
+    by the Head Admin.
+- **Courses** — Courses → Modules → Lessons hierarchy, publish/unpublish,
+  student self-enrollment with progress tracking.
+- **Resources** — Upload videos, images, PDF, DOCX, PPT, ZIP files, or attach
+  external links (YouTube, Google Drive, Dropbox, OneDrive, Vimeo, or any
+  public URL). All resources open in an in-app preview window instead of
+  redirecting away from the site (YouTube/Vimeo/Drive embed directly; other
+  links are framed with a fallback "open in new tab" if the source blocks
+  embedding).
+- **Course categories** — staff can create categories and tag courses; the
+  course catalog can be filtered by category.
+- **Quizzes** — staff build quizzes per course with multiple-choice,
+  true/false, and short-answer questions; students take them and get an
+  instant auto-graded score and pass/fail result.
+- **Assignments** — staff post assignments per lesson with instructions;
+  students upload a submission file; staff review submissions and enter a
+  grade + feedback.
+- **Certificates** — staff issue a certificate to any enrolled student for a
+  course; each certificate gets a unique verification code
+  (`GET /api/certificates/verify/{code}`, no auth required).
+- **Donations & campaigns** — staff create fundraising campaigns with a goal
+  amount; donors browse and donate, with a live progress bar and their own
+  donation history.
+- **Rich dashboards** — Head Admin/Moderator get KPI cards and real charts
+  (registration trend, users by role, active/inactive, course status) driven
+  by live backend stats. The public landing page shows live counters and
+  featured courses/campaigns.
+- **Storage abstraction** — Files are saved through a swappable storage
+  backend. Local disk today; drop in an S3 or Cloudinary implementation
+  later without touching any route or service code.
+- **Fully responsive UI** — Collapsible sidebar on mobile, responsive
+  tables (horizontal scroll), responsive forms/cards/charts, touch-friendly
+  buttons, no horizontal overflow, from phones up to large monitors.
 
+## Technology Stack
 
+**Frontend:** React 19 · Vite · Tailwind CSS · React Router · Axios ·
+React Hook Form · TanStack React Query · Chart.js
 
----
+**Backend:** Python · FastAPI · SQLAlchemy ORM · Alembic · JWT
+(python-jose) · Pydantic / Pydantic Settings
 
-## 🔗 Architecture Documentation
+**Database:** SQLite (local file, default) — swappable to any SQLAlchemy-
+supported database via one environment variable
 
-The detailed visual and conceptual architecture of the NGO LMS is available in the external technical architecture document.
+**Storage:** Local uploads in development, behind an abstraction so
+Cloudinary/S3 can be added later
 
-### 📐 View Technical Architecture
+## Folder Structure
 
-<p align="center">
-  <a href="https://notebook.google.com/notebook/de7866e8-7124-4468-bd8a-fb1ce834b043/artifact/2506f020-c260-4a17-a9c1-43b632c701ca?utm_source=nlm_web_share&utm_medium=google_oo&utm_campaign=art_share_1&utm_content=&utm_smc=nlm_web_share_google_oo_art_share_1_" target="_blank">
-    <strong>🚀 Open NGO LMS Technical Architecture →</strong>
-  </a>
-</p>
-
-The architecture documentation covers:
-
-* 🔐 Authentication and authorization
-* 👥 Role-Based Access Control
-* 🎓 Course → Module → Lesson hierarchy
-* 📚 Learning resources
-* 📝 Quizzes and assignments
-* 🏆 Certificates and verification
-* 💰 Donation campaigns
-* 🤝 Donor engagement
-* 📊 Administrative dashboards
-* 🗄️ Database architecture
-* 📦 Storage abstraction
-* ☁️ Deployment architecture
-* 📱 Responsive frontend architecture
-
----
-
-## 🧱 Architecture Layers
-
-| Layer                 | Technology                   | Responsibility                           |
-| --------------------- | ---------------------------- | ---------------------------------------- |
-| **Presentation**      | React 19, Vite, Tailwind CSS | User interface and interaction           |
-| **Routing**           | React Router                 | Client-side navigation                   |
-| **API Communication** | Axios, TanStack React Query  | API requests and server-state management |
-| **API Layer**         | FastAPI                      | REST API endpoints                       |
-| **Security**          | JWT, bcrypt, RBAC            | Authentication and authorization         |
-| **Validation**        | Pydantic                     | Request and response validation          |
-| **Business Logic**    | Service Layer                | Application rules and workflows          |
-| **ORM**               | SQLAlchemy                   | Database abstraction                     |
-| **Database**          | SQLite / PostgreSQL          | Persistent application data              |
-| **Migration**         | Alembic                      | Database schema versioning               |
-| **Storage**           | Local / S3 / Cloudinary*     | File and resource storage                |
-| **Analytics**         | Chart.js + Statistics APIs   | Dashboards and reporting                 |
-| **Deployment**        | Render / Railway / Replit    | Application hosting                      |
-
-* S3 and Cloudinary implementations are planned future improvements.
-
----
-
-## 🔄 Architecture Flow
-
-```mermaid
-flowchart TB
-
-    U[Users]
-
-    U --> FE[React 19 Frontend]
-
-    FE --> V[Vite]
-    FE --> TW[Tailwind CSS]
-    FE --> RR[React Router]
-    FE --> AX[Axios]
-    FE --> RQ[TanStack React Query]
-    FE --> CH[Chart.js]
-
-    FE --> API[FastAPI REST API]
-
-    API --> AUTH[Authentication & Authorization]
-
-    AUTH --> JWT[JWT Authentication]
-    AUTH --> BC[Bcrypt Password Hashing]
-    AUTH --> RBAC[Role-Based Access Control]
-
-    RBAC --> ADMIN[Head Admin]
-    RBAC --> MOD[Moderator]
-    RBAC --> INST[Instructor]
-    RBAC --> STUD[Student]
-    RBAC --> DONOR[Donor]
-
-    API --> SERVICES[Application Service Layer]
-
-    SERVICES --> AS[Auth Service]
-    SERVICES --> US[User Service]
-    SERVICES --> CS[Course Service]
-    SERVICES --> RS[Resource Service]
-    SERVICES --> ES[Enrollment Service]
-    SERVICES --> DS[Donation Service]
-    SERVICES --> SS[Statistics Service]
-
-    SERVICES --> ORM[SQLAlchemy ORM]
-
-    ORM --> DB[(Database)]
-
-    DB --> SQLITE[(SQLite)]
-    DB -. Configuration .-> POSTGRES[(PostgreSQL)]
-
-    SERVICES --> STORAGE[Storage Abstraction]
-
-    STORAGE --> LOCAL[Local Storage]
-    STORAGE -. Future .-> S3[S3]
-    STORAGE -. Future .-> CLOUD[Cloudinary]
-
-    ORM --> MIG[Alembic Migrations]
-
-    API --> DEPLOY[Deployment]
-
-    DEPLOY --> LOCALHOST[Localhost]
-    DEPLOY --> RENDER[Render]
-    DEPLOY --> RAILWAY[Railway]
-    DEPLOY --> REPLIT[Replit]
+```
+ngo-lms/
+├── backend/
+│   ├── app/
+│   │   ├── core/           # config, database session, security (JWT/hashing), RBAC deps
+│   │   ├── models/         # SQLAlchemy models (User, Course, Module, Lesson, Resource, Enrollment)
+│   │   ├── schemas/        # Pydantic request/response schemas
+│   │   ├── routers/        # FastAPI routers (thin — no business logic)
+│   │   ├── services/       # Business logic (auth, users, courses, resources, storage)
+│   │   ├── middleware/     # Reserved for custom middleware
+│   │   ├── utils/          # Shared helpers
+│   │   ├── seed.py         # Seeds the Head Admin account on first run
+│   │   └── main.py         # FastAPI app entrypoint
+│   ├── alembic/            # Database migrations
+│   ├── uploads/             # Local file storage (dev)
+│   ├── requirements.txt
+│   └── .env.example
+├── frontend/
+│   ├── src/
+│   │   ├── api/             # Axios instance + endpoint wrappers
+│   │   ├── components/
+│   │   │   ├── layout/       # Sidebar, Navbar, DashboardLayout
+│   │   │   └── ui/           # Button, Card, Input, Table, Modal (reusable)
+│   │   ├── context/          # AuthContext
+│   │   ├── pages/             # Landing, Login, Signup, ForgotPassword, dashboard/*
+│   │   └── styles/            # Tailwind entrypoint
+│   ├── index.html
+│   ├── vite.config.js
+│   ├── tailwind.config.js
+│   └── .env.example
+└── README.md
 ```
 
----
-
-## 🔐 Role-Based Access Control
-
-NGO LMS implements Role-Based Access Control (RBAC) with five primary roles.
-
-```mermaid
-flowchart LR
-
-    AUTH[Authentication] --> RBAC[RBAC Authorization]
-
-    RBAC --> ADMIN[Head Admin]
-    RBAC --> MOD[Moderator]
-    RBAC --> INST[Instructor]
-    RBAC --> STUD[Student]
-    RBAC --> DONOR[Donor]
-
-    ADMIN --> A1[Manage Moderators]
-    ADMIN --> A2[Manage Users]
-    ADMIN --> A3[Assign Roles]
-    ADMIN --> A4[View Reports]
-
-    MOD --> M1[Manage Users]
-    MOD --> M2[Manage Courses]
-    MOD --> M3[Manage Resources]
-    MOD --> M4[Manage Enrollments]
-    MOD --> M5[View Reports]
-
-    INST --> I1[Content Management]
-    INST --> I2[Resource Management]
-    INST --> I3[Course Management]
-
-    STUD --> S1[Self Registration]
-    STUD --> S2[Course Enrollment]
-    STUD --> S3[Progress Tracking]
-
-    DONOR --> D1[Published Course Visibility]
-    DONOR --> D2[Donation Campaigns]
-    DONOR --> D3[Donation History]
-```
-
-### Role Summary
-
-| Role                 | Primary Responsibilities                                          |
-| -------------------- | ----------------------------------------------------------------- |
-| 👑 **Head Admin**    | System administration, moderators, permissions, users and reports |
-| 🛡️ **Moderator**    | Users, courses, resources, enrollments and reports                |
-| 👨‍🏫 **Instructor** | Courses, content and learning resources                           |
-| 🎓 **Student**       | Registration, enrollment and progress tracking                    |
-| 💝 **Donor**         | Published course visibility, campaigns and donation history       |
-
----
-
-## 🗄️ Data & Storage Architecture
-
-The backend communicates with the database through SQLAlchemy. This creates a layer of abstraction between application logic and the underlying database engine.
-
-```mermaid
-flowchart TB
-
-    APP[FastAPI Application]
-
-    APP --> SERVICE[Service Layer]
-
-    SERVICE --> ORM[SQLAlchemy ORM]
-
-    ORM --> SQLITE[(SQLite)]
-    ORM -. DATABASE_URL .-> PG[(PostgreSQL)]
-
-    SERVICE --> STORAGE[Storage Abstraction]
-
-    STORAGE --> LOCAL[Local Upload Directory]
-    STORAGE -. Future Implementation .-> S3[Amazon S3]
-    STORAGE -. Future Implementation .-> CLOUD[Cloudinary]
-
-    MIG[Alembic] --> ORM
-```
-
-### Database Strategy
-
-| Component               | Purpose                                    |
-| ----------------------- | ------------------------------------------ |
-| **SQLAlchemy**          | Database abstraction and ORM               |
-| **SQLite**              | Default zero-setup development database    |
-| **PostgreSQL**          | Production database option                 |
-| **Alembic**             | Database schema migrations                 |
-| **Storage Abstraction** | Decouples file storage from business logic |
-| **Local Storage**       | Current development storage implementation |
-| **S3 / Cloudinary**     | Planned scalable storage implementations   |
-
----
-
-## ☁️ Deployment Architecture
-
-The application is designed so the **same codebase** can be deployed to different environments. Deployment-specific behavior is controlled primarily through environment variables.
-
-```mermaid
-flowchart TB
-
-    USERS[Users]
-
-    USERS --> FRONTEND[React Frontend]
-
-    FRONTEND --> RENDER[Render]
-    FRONTEND --> RAILWAY[Railway]
-    FRONTEND --> REPLIT[Replit]
-    FRONTEND --> LOCAL[Localhost]
-
-    RENDER --> BACKEND1[FastAPI Backend]
-    RAILWAY --> BACKEND2[FastAPI Backend]
-    REPLIT --> BACKEND3[FastAPI Backend]
-    LOCAL --> BACKEND4[FastAPI Backend]
-
-    BACKEND1 --> DB1[(PostgreSQL / SQLite)]
-    BACKEND2 --> DB2[(PostgreSQL / SQLite)]
-    BACKEND3 --> DB3[(SQLite)]
-    BACKEND4 --> DB4[(SQLite)]
-
-    BACKEND1 --> STORAGE1[Persistent Storage]
-    BACKEND2 --> STORAGE2[Persistent Storage]
-    BACKEND3 --> STORAGE3[Filesystem]
-    BACKEND4 --> STORAGE4[Local Uploads]
-```
-
-### Deployment Targets
-
-| Environment   | Frontend    | Backend           | Database            | Primary Use        |
-| ------------- | ----------- | ----------------- | ------------------- | ------------------ |
-| **Localhost** | Vite        | Uvicorn / FastAPI | SQLite              | Development        |
-| **Render**    | Static Site | Web Service       | PostgreSQL / SQLite | Deployment         |
-| **Railway**   | Service     | FastAPI           | PostgreSQL / SQLite | Deployment         |
-| **Replit**    | Node.js     | Python / FastAPI  | SQLite              | Development / Demo |
-
----
-
-## 🧩 Architectural Principles
-
-### 1. Separation of Concerns
-
-Frontend, API routes, services, database models, schemas, and storage are separated into dedicated layers.
-
-### 2. Role-Based Security
-
-Access to application functionality is controlled according to the authenticated user's role and permissions.
-
-### 3. Database Abstraction
-
-The application communicates with relational databases through SQLAlchemy, reducing database-specific coupling.
-
-### 4. Storage Abstraction
-
-File handling is isolated behind a storage layer, allowing future migration from local storage to S3 or Cloudinary.
-
-### 5. Environment Portability
-
-Deployment-specific configuration is provided through environment variables rather than hard-coded application settings.
-
-### 6. API-First Backend
-
-The FastAPI backend exposes structured REST endpoints consumed by the React frontend.
-
-### 7. Responsive Design
-
-The frontend is designed to operate across mobile, tablet, laptop, and large-monitor form factors.
-
-### 8. Migration-Driven Database Evolution
-
-Alembic provides a reproducible mechanism for tracking and applying database schema changes.
-
----
-
-## ✨ Features
-
-* **Authentication** — JWT-based login/signup, password hashing (bcrypt), and a "forgot password" page that directs users to contact an administrator (no email sending in this phase).
-
-* **RBAC** — Five roles: Head Admin, Moderator, Instructor, Student, Donor.
-
-  * The Head Admin account is **seeded automatically** on first run.
-  * Only the Head Admin can create Moderators and assign their permissions.
-  * Students self-register.
-  * Any user can later be promoted to another role by the Head Admin.
-
-* **Courses** — Courses → Modules → Lessons hierarchy, publish/unpublish, student self-enrollment with progress tracking.
-
-* **Resources** — Upload videos, images, PDF, DOCX, PPT, ZIP files, or attach external links (YouTube, Google Drive, Dropbox, OneDrive, Vimeo, or any public URL).
-
-* **Course Categories** — Staff can create categories and tag courses; the course catalog can be filtered by category.
-
-* **Quizzes** — Staff build quizzes per course with multiple-choice, true/false, and short-answer questions; students take them and get an instant auto-graded score and pass/fail result.
-
-* **Assignments** — Staff post assignments per lesson with instructions; students upload a submission file; staff review submissions and enter a grade and feedback.
-
-* **Certificates** — Staff issue a certificate to any enrolled student for a course; each certificate gets a unique verification code.
-
-* **Donations & Campaigns** — Staff create fundraising campaigns with a goal amount; donors browse and donate, with a live progress bar and their own donation history.
-
-* **Rich Dashboards** — Head Admin/Moderator dashboards provide KPI cards and charts for registration trends, users by role, active/inactive users, and course status.
-
-* **Storage Abstraction** — Files are saved through a swappable storage backend. Local disk today; S3 or Cloudinary can be added later.
-
-* **Fully Responsive UI** — Responsive tables, forms, cards, charts, navigation and touch-friendly controls.
-
----
-
-## 🛠️ Technology Stack
-
-### Frontend
-
-* React 19
-* Vite
-* Tailwind CSS
-* React Router
-* Axios
-* React Hook Form
-* TanStack React Query
-* Chart.js
-
-### Backend
-
-* Python
-* FastAPI
-* SQLAlchemy ORM
-* Alembic
-* JWT / python-jose
-* Pydantic
-* Pydantic Settings
-* bcrypt
-
-### Database
-
-* SQLite by default
-* PostgreSQL supported through SQLAlchemy configuration
-
-### Storage
-
-* Local uploads in development
-* Storage abstraction for future Cloudinary / S3 integration
-
----
-
----
-
-## 📋 Prerequisites
-
-* **Node.js** 18+ and npm
-* **Python** 3.11+
-* **Git**
-
-No database server is required for local development — SQLite ships with Python.
-
----
-
-## 🔐 Environment Variables
-
-### Backend
-
-Create `backend/.env` from `backend/.env.example`.
-
-| Variable                      | Description                  | Local Default            |
-| ----------------------------- | ---------------------------- | ------------------------ |
-| `DATABASE_URL`                | SQLAlchemy connection string | `sqlite:///./ngo_lms.db` |
-| `SECRET_KEY`                  | JWT signing secret           | Development placeholder  |
-| `ALGORITHM`                   | JWT algorithm                | `HS256`                  |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Access token lifetime        | `60`                     |
-| `REFRESH_TOKEN_EXPIRE_DAYS`   | Refresh token lifetime       | `7`                      |
-| `CORS_ORIGINS`                | Allowed frontend origins     | `http://localhost:5173`  |
-| `STORAGE_DRIVER`              | Storage implementation       | `local`                  |
-| `UPLOAD_DIR`                  | Uploaded files directory     | `uploads`                |
-| `MAX_UPLOAD_MB`               | Maximum upload size          | `200`                    |
-| `HEAD_ADMIN_EMAIL`            | Seeded admin email           | `.env.example`           |
-| `HEAD_ADMIN_PASSWORD`         | Seeded admin password        | `.env.example`           |
-| `HEAD_ADMIN_NAME`             | Seeded admin name            | `.env.example`           |
-
-### Frontend
-
-| Variable            | Description        |
-| ------------------- | ------------------ |
-| `VITE_API_BASE_URL` | Backend API origin |
-
-Leave it empty in development when Vite proxies `/api`.
-
----
-
-## 🚀 Running Locally
+## Prerequisites
+
+- **Node.js** 18+ and npm
+- **Python** 3.11+
+- **Git**
+
+No database server is required for local development — SQLite ships with
+Python.
+
+## Environment Variables
+
+### Backend (`backend/.env`, copy from `backend/.env.example`)
+
+| Variable | Description | Local default |
+|---|---|---|
+| `DATABASE_URL` | SQLAlchemy connection string | `sqlite:///./ngo_lms.db` |
+| `SECRET_KEY` | JWT signing secret — change in every real deployment | dev placeholder |
+| `ALGORITHM` | JWT algorithm | `HS256` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | Access token lifetime | `60` |
+| `REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token lifetime | `7` |
+| `CORS_ORIGINS` | Comma-separated allowed frontend origins | `http://localhost:5173` |
+| `STORAGE_DRIVER` | `local` (only implemented driver today) | `local` |
+| `UPLOAD_DIR` | Folder for uploaded files | `uploads` |
+| `MAX_UPLOAD_MB` | Max upload size hint | `200` |
+| `HEAD_ADMIN_EMAIL` / `HEAD_ADMIN_PASSWORD` / `HEAD_ADMIN_NAME` | Seeded automatically on first run | see `.env.example` |
+
+### Frontend (`frontend/.env`, copy from `frontend/.env.example`)
+
+| Variable | Description |
+|---|---|
+| `VITE_API_BASE_URL` | Backend origin. Leave empty in dev (Vite proxies `/api`); set to your backend's URL when frontend and backend are on different domains (e.g. two separate Render services). |
+
+## Running Locally
 
 ```bash
 # 1. Clone the repository
@@ -456,525 +174,231 @@ cd ngo-lms
 
 # 2. Backend setup
 cd backend
-
 python -m venv .venv
-
-# macOS/Linux
-source .venv/bin/activate
-
-# Windows
-.venv\Scripts\activate
-
+source .venv/bin/activate        # macOS/Linux
+# .venv\Scripts\activate         # Windows (cmd.exe or PowerShell)
 pip install -r requirements.txt
+cp .env.example .env             # macOS/Linux
+# copy .env.example .env         # Windows cmd.exe
+# Copy-Item .env.example .env    # Windows PowerShell
 
-# macOS/Linux
-cp .env.example .env
-
-# Windows cmd
-copy .env.example .env
-
-# Windows PowerShell
-Copy-Item .env.example .env
-
-# 3. Database migrations
+# 3. Database migrations (optional in dev — see note below)
 alembic upgrade head
 
 # 4. Run backend
 uvicorn app.main:app --reload --port 8000
+# Backend is now on http://localhost:8000
+# Swagger docs: http://localhost:8000/docs
+# The Head Admin account is created automatically on first startup.
 
-# Backend
-http://localhost:8000
-
-# Swagger
-http://localhost:8000/docs
-
-# 5. Frontend
+# 5. Frontend setup (in a new terminal)
 cd ../frontend
-
 npm install
-
-# macOS/Linux
-cp .env.example .env
-
-# Windows cmd
-copy .env.example .env
-
-# Windows PowerShell
-Copy-Item .env.example .env
+cp .env.example .env             # macOS/Linux
+# copy .env.example .env         # Windows cmd.exe
+# Copy-Item .env.example .env    # Windows PowerShell
 
 # 6. Run frontend
 npm run dev
+# Frontend is now on http://localhost:5173
 
-# Frontend
-http://localhost:5173
+# 7. Access application
+# Open http://localhost:5173 in your browser.
+# Log in with the seeded Head Admin credentials from backend/.env
+# (HEAD_ADMIN_EMAIL / HEAD_ADMIN_PASSWORD).
 ```
 
-The Head Admin account is created automatically on first startup.
+> **Windows note:** if `python` / `python3` isn't recognized, install it from
+> [python.org](https://www.python.org/downloads/) (not the Microsoft Store
+> alias) and make sure "Add Python to PATH" is checked during setup, or use
+> the `py` launcher (`py -m venv .venv`) instead.
 
-### Windows Note
+> **Note:** `app/main.py` also calls `Base.metadata.create_all()` on startup,
+> so the SQLite file and tables are created automatically even if you skip
+> step 3 in early development. Once you start making schema changes, switch
+> to Alembic migrations (`alembic revision --autogenerate -m "message"` then
+> `alembic upgrade head`) so changes are tracked and reproducible.
 
-If `python` or `python3` is not recognized, install Python from [python.org](https://www.python.org/downloads/) and ensure **Add Python to PATH** is enabled.
+### Troubleshooting
 
-Alternatively:
+- **`ValueError: password cannot be longer than 72 bytes` / `error reading
+  bcrypt version` on startup** — this comes from an old `passlib`+`bcrypt`
+  combo. This project hashes passwords with `bcrypt` directly (no
+  `passlib`), so a fresh `pip install -r requirements.txt` resolves it. If
+  you still see it, your virtualenv has a stale `passlib`/`bcrypt` install —
+  delete `.venv` and reinstall.
+- **`'cp' is not recognized...` (Windows `cmd.exe`)** — `cp` is a
+  Unix command. Use `copy .env.example .env` in `cmd.exe` or
+  `Copy-Item .env.example .env` in PowerShell instead.
 
-```powershell
-py -m venv .venv
-```
-
----
-
-## 🧪 Demo Data
-
-The application starts empty except for the Head Admin account.
-
-To populate the application with realistic sample data:
+## Database Migrations
 
 ```bash
 cd backend
-
-python -m app.seed_demo_data
-```
-
-The demo seed includes:
-
-* Courses
-* Quizzes
-* Enrollments
-* Certificates
-* Donation campaigns
-* Donations
-* Forum posts
-* Blog posts
-* Demo users
-
-
-The command is safe to run more than once because it checks for an existing marker user before creating demo data.
-
-### Demo Accounts
-
-All seeded accounts share the password:
-
-```text
-Demo@123
-```
-
-| Role       | Email                            |
-| ---------- | -------------------------------- |
-| Head Admin | Configured in `backend/.env`     |
-| Moderator  | `rohit.mod@demo.ngo-lms.test`    |
-| Instructor | `arjun.inst@demo.ngo-lms.test`   |
-| Student    | `priya.sharma@demo.ngo-lms.test` |
-| Donor      | `donor0@demo.ngo-lms.test`       |
-
----
-
-## 🔧 Troubleshooting
-
-### bcrypt / passlib error
-
-If you encounter:
-
-```text
-ValueError: password cannot be longer than 72 bytes
-```
-
-or an error involving bcrypt versions, reinstall the project's dependencies in a fresh virtual environment.
-
-This project hashes passwords using bcrypt directly.
-
-```bash
-pip install -r requirements.txt
-```
-
-If necessary, delete `.venv` and recreate the environment.
-
-### `cp` is not recognized on Windows
-
-Use:
-
-```cmd
-copy .env.example .env
-```
-
-or PowerShell:
-
-```powershell
-Copy-Item .env.example .env
-```
-
----
-
-## 🗃️ Database Migrations
-
-After changing a database model:
-
-```bash
-cd backend
-
-# Generate migration
+# Generate a migration after changing a model
 alembic revision --autogenerate -m "describe your change"
 
-# Apply migration
+# Apply migrations
 alembic upgrade head
 
 # Roll back one revision
 alembic downgrade -1
 ```
 
-During early development, `Base.metadata.create_all()` can create the SQLite database automatically.
+---
 
-Once schema changes begin, Alembic migrations should be used so database changes remain tracked and reproducible.
+## Deployment Guide
+
+The app is designed so the **same code** runs on all of these targets —
+only environment variables change.
+
+### 1. Localhost
+
+Covered in full in [Running Locally](#running-locally) above.
+
+### 2. Render
+
+**Backend (Web Service)**
+- New → Web Service → connect your repo, root directory: `backend`
+- Build command: `pip install -r requirements.txt`
+- Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Environment variables: copy everything from `backend/.env.example`,
+  set a strong `SECRET_KEY`, and set `CORS_ORIGINS` to your frontend's
+  Render URL (e.g. `https://ngo-lms-frontend.onrender.com`)
+- `DATABASE_URL` can stay as SQLite for a quick demo, **but Render's disk is
+  ephemeral on the free tier** — for anything persistent, provision a
+  Render PostgreSQL database and set `DATABASE_URL` to its connection
+  string (no code changes needed).
+
+**Frontend (Static Site)**
+- New → Static Site → same repo, root directory: `frontend`
+- Build command: `npm install && npm run build`
+- Publish directory: `dist`
+- Environment variable: `VITE_API_BASE_URL=https://<your-backend>.onrender.com`
+
+**PostgreSQL (optional, for persistence)**
+- New → PostgreSQL → copy the "Internal Database URL" into the backend's
+  `DATABASE_URL`. Run `alembic upgrade head` once (Render's Shell tab, or
+  as a one-off Job) to create tables.
+
+**Common issues**
+- *CORS errors*: make sure `CORS_ORIGINS` on the backend exactly matches
+  the frontend's deployed URL (including `https://`).
+- *"Application failed to respond"*: confirm the start command binds to
+  `0.0.0.0` and `$PORT`, not a hardcoded port.
+- *Uploaded files disappear after redeploy*: expected on ephemeral disk —
+  swap `STORAGE_DRIVER` to a persistent backend (S3/Cloudinary) for
+  production use.
+
+### 3. Railway
+
+**Backend**
+- New Project → Deploy from GitHub repo → set root directory to `backend`
+- Build: Railway auto-detects Python; ensure `requirements.txt` is present
+- Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- Add the same environment variables as the Render backend above
+
+**Frontend**
+- New service in the same project → root directory `frontend`
+- Build command: `npm install && npm run build`
+- Start command (if using a Node static server): `npx serve -s dist -l $PORT`
+- Environment variable: `VITE_API_BASE_URL=https://<your-backend>.up.railway.app`
+
+**PostgreSQL**
+- Add a PostgreSQL plugin from Railway's marketplace, then copy its
+  `DATABASE_URL` into the backend service's variables.
+
+**Common issues**
+- *Build succeeds but service crashes on boot*: check that `PORT` is read
+  from the environment, not hardcoded — Railway assigns it dynamically.
+- *Frontend can't reach backend*: double check `VITE_API_BASE_URL` was set
+  **before** the build (Vite bakes env vars in at build time, not runtime).
+
+### 4. Replit
+
+- Create two Repls (or one Repl with two run configurations): one for
+  `backend`, one for `frontend`.
+- **Backend Repl**: language = Python. In the Shell:
+  ```bash
+  pip install -r requirements.txt
+  uvicorn app.main:app --host 0.0.0.0 --port 8000
+  ```
+- **Frontend Repl**: language = Node.js. In the Shell:
+  ```bash
+  npm install
+  npm run dev -- --host 0.0.0.0
+  ```
+- **Environment variables**: use Replit's "Secrets" panel to set the same
+  keys as `backend/.env.example` and `frontend/.env.example`. Set
+  `VITE_API_BASE_URL` to the backend Repl's public URL, and `CORS_ORIGINS`
+  on the backend to the frontend Repl's public URL.
+- **Database**: SQLite works as-is — the `.db` file lives in the backend
+  Repl's filesystem. Note that Replit's free-tier filesystem can reset on
+  redeploy, so treat it as a dev/demo environment.
+- **Running both services**: keep both Repls running simultaneously (or
+  use a single Repl with a `.replit` multi-process config) — the frontend
+  needs the backend reachable at the URL set in `VITE_API_BASE_URL`.
 
 ---
 
-# ☁️ Deployment Guide
-
-The application is designed so the **same codebase** can run across multiple deployment environments. Only environment variables and platform configuration change.
-
----
-
-## 1. Localhost
-
-Local development is covered in the [Running Locally](#running-locally) section.
-
----
-
-## 2. Render
-
-### Backend
-
-Create a new Render Web Service:
-
-```text
-Root Directory:
-backend
-
-Build Command:
-pip install -r requirements.txt
-
-Start Command:
-uvicorn app.main:app --host 0.0.0.0 --port $PORT
-```
-
-Configure the environment variables from:
-
-```text
-backend/.env.example
-```
-
-Set a strong production `SECRET_KEY`.
-
-Set:
-
-```text
-CORS_ORIGINS=https://<your-frontend>.onrender.com
-```
-
-### Database
-
-SQLite can be used for a quick demonstration, but Render's ephemeral filesystem should not be relied upon for persistent production data.
-
-For persistent production deployments, use PostgreSQL and set:
-
-```text
-DATABASE_URL=<postgresql-connection-string>
-```
-
-No application-code changes are required because the backend uses SQLAlchemy.
-
-### Frontend
-
-Create a Render Static Site:
-
-```text
-Root Directory:
-frontend
-
-Build Command:
-npm install && npm run build
-
-Publish Directory:
-dist
-```
-
-Set:
-
-```text
-VITE_API_BASE_URL=https://<your-backend>.onrender.com
-```
-
-### Common Render Issues
-
-**CORS errors**
-
-Ensure `CORS_ORIGINS` exactly matches the frontend URL.
-
-**Application failed to respond**
-
-Ensure the backend binds to:
-
-```text
-0.0.0.0
-```
-
-and uses:
-
-```text
-$PORT
-```
-
-**Uploaded files disappear**
-
-Use persistent storage instead of ephemeral local disk.
-
----
-
-## 3. Railway
-
-### Backend
-
-Deploy the repository and set:
-
-```text
-Root Directory:
-backend
-```
-
-Railway should detect Python automatically.
-
-Start command:
-
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port $PORT
-```
-
-Configure the same environment variables used by the Render backend.
-
-### Frontend
-
-Create a frontend service:
-
-```text
-Root Directory:
-frontend
-```
-
-Build:
-
-```bash
-npm install && npm run build
-```
-
-If using a Node static server:
-
-```bash
-npx serve -s dist -l $PORT
-```
-
-Set:
-
-```text
-VITE_API_BASE_URL=https://<your-backend>.up.railway.app
-```
-
-### PostgreSQL
-
-Add a PostgreSQL service/plugin and configure:
-
-```text
-DATABASE_URL=<railway-postgresql-url>
-```
-
-### Common Railway Issue
-
-If the build succeeds but the service crashes, ensure the application reads the dynamically assigned:
-
-```text
-$PORT
-```
-
-instead of using a hard-coded production port.
-
----
-
-## 4. Replit
-
-The application can be deployed using two Repls or a single Repl with multiple run configurations.
-
-### Backend
-
-```bash
-pip install -r requirements.txt
-
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
-
-### Frontend
-
-```bash
-npm install
-
-npm run dev -- --host 0.0.0.0
-```
-
-Configure environment variables using Replit Secrets.
-
-Set:
-
-```text
-VITE_API_BASE_URL=<backend-public-url>
-```
-
-and configure:
-
-```text
-CORS_ORIGINS=<frontend-public-url>
-```
-
-SQLite works as-is, but the filesystem should be treated as development/demo storage when persistence across redeployments is not guaranteed.
-
----
-
-# 🔌 API Documentation
-
-Interactive API documentation is automatically generated by FastAPI.
-
-### Swagger UI
-
-```text
-http://localhost:8000/docs
-```
-
-### ReDoc
-
-```text
-http://localhost:8000/redoc
-```
-
----
-
-## API Endpoint Summary
-
-| Method | Endpoint                                 | Description                   | Auth              |
-| ------ | ---------------------------------------- | ----------------------------- | ----------------- |
-| POST   | `/api/auth/signup`                       | Student self-registration     | No                |
-| POST   | `/api/auth/login`                        | Login and receive tokens      | No                |
-| POST   | `/api/auth/forgot-password`              | Contact administrator message | No                |
-| GET    | `/api/auth/me`                           | Current authenticated user    | Yes               |
-| GET    | `/api/users`                             | List users                    | Head Admin        |
-| POST   | `/api/users/moderators`                  | Create Moderator              | Head Admin        |
-| PATCH  | `/api/users/moderators/{id}/permissions` | Update Moderator permissions  | Head Admin        |
-| PATCH  | `/api/users/{id}/role`                   | Change user role              | Head Admin        |
-| PATCH  | `/api/users/{id}/active`                 | Activate/deactivate user      | Head Admin        |
-| GET    | `/api/courses`                           | List courses                  | Yes               |
-| GET    | `/api/courses/{id}`                      | Course details                | Yes               |
-| POST   | `/api/courses`                           | Create course                 | Staff             |
-| POST   | `/api/courses/{id}/publish`              | Publish course                | Staff             |
-| POST   | `/api/courses/{id}/unpublish`            | Unpublish course              | Staff             |
-| POST   | `/api/courses/{id}/modules`              | Add module                    | Staff             |
-| POST   | `/api/courses/modules/{id}/lessons`      | Add lesson                    | Staff             |
-| POST   | `/api/resources/upload`                  | Upload resource               | Staff             |
-| POST   | `/api/resources/link`                    | Attach external link          | Staff             |
-| POST   | `/api/enrollments/{course_id}`           | Student enrollment            | Student           |
-| GET    | `/api/enrollments/me`                    | Student enrollments           | Yes               |
-| GET    | `/api/stats/users`                       | User statistics               | Admin / Moderator |
-| GET    | `/api/stats/courses`                     | Course statistics             | Admin / Moderator |
-| GET    | `/api/users/export.csv`                  | Export users                  | Head Admin        |
-| GET    | `/api/donations/campaigns`               | Donation campaigns            | Yes               |
-| POST   | `/api/donations/campaigns`               | Create campaign               | Admin / Moderator |
-| POST   | `/api/donations/campaigns/{id}/donate`   | Make donation                 | Donor             |
-| GET    | `/api/donations/summary`                 | Donation statistics           | Admin / Moderator |
-| GET    | `/api/health`                            | Health check                  | No                |
-
-For complete request/response bodies and examples, use the Swagger UI at `/docs`.
-
----
-
-# 🚀 Future Improvements
-
-The following features are planned or can be expanded in future development iterations:
-
-* Events & announcements module
-* PDF export
-* Audit logs / activity feed
-* Notification center
-* Global search
-* Real-time updates using WebSockets
-* Dark mode
-* Dashboard widget customization
-* Payment gateway integration for real donations
-* Email-based password reset
-* S3 / Cloudinary storage backend implementations
-* Automatic course progress tracking
-* Refresh-token rotation
-* Logout / token blacklist endpoint
-* Automated backend tests using pytest
-* Frontend tests using Vitest / React Testing Library
-* CI pipeline with linting and automated tests
-
----
-
-## 📊 Project Architecture at a Glance
-
-```text
-                           ┌───────────────────┐
-                           │      USERS        │
-                           └─────────┬─────────┘
-                                     │
-                                     ▼
-                         ┌───────────────────────┐
-                         │   REACT FRONTEND     │
-                         │ React + Vite +       │
-                         │ Tailwind + Router    │
-                         └───────────┬───────────┘
-                                     │
-                                  REST API
-                                     │
-                                     ▼
-                         ┌───────────────────────┐
-                         │     FASTAPI API      │
-                         └───────────┬───────────┘
-                                     │
-                ┌────────────────────┼────────────────────┐
-                │                    │                    │
-                ▼                    ▼                    ▼
-        ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
-        │     AUTH     │     │   SERVICES   │     │    RBAC      │
-        │ JWT + bcrypt │     │ Business     │     │ 5 Roles      │
-        └──────────────┘     │ Logic        │     └──────────────┘
-                             └──────┬───────┘
-                                    │
-                                    ▼
-                          ┌──────────────────┐
-                          │   SQLAlchemy     │
-                          │      ORM         │
-                          └────────┬─────────┘
-                                   │
-                    ┌──────────────┴──────────────┐
-                    │                             │
-                    ▼                             ▼
-             ┌──────────────┐             ┌──────────────┐
-             │   SQLite /   │             │   Storage    │
-             │ PostgreSQL   │             │ Abstraction  │
-             └──────────────┘             └──────┬───────┘
-                                                 │
-                                     ┌───────────┴───────────┐
-                                     │                       │
-                                     ▼                       ▼
-                               Local Storage         Future S3 /
-                                                      Cloudinary
-```
-
----
-
-## 📐 Technical Architecture Reference
-
-For the complete visual architecture and supporting technical documentation:
-
-**[🚀 Open NGO LMS Technical Architecture](https://notebook.google.com/notebook/de7866e8-7124-4468-bd8a-fb1ce834b043/artifact/2506f020-c260-4a17-a9c1-43b632c701ca?utm_source=nlm_web_share&utm_medium=google_oo&utm_campaign=art_share_1&utm_content=&utm_smc=nlm_web_share_google_oo_art_share_1_)**
-
----
-
-## 📄 License
-
-This project is developed as an NGO-focused Learning Management System.
+## API Documentation
+
+Interactive, always-current API docs are auto-generated by FastAPI and
+available at **`/docs`** (Swagger UI) and **`/redoc`** on the running
+backend — e.g. `http://localhost:8000/docs`.
+
+Summary of the main endpoints:
+
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| POST | `/api/auth/signup` | Student self-registration | No |
+| POST | `/api/auth/login` | Log in, returns access + refresh tokens | No |
+| POST | `/api/auth/forgot-password` | Returns a "contact your administrator" message | No |
+| GET | `/api/auth/me` | Current authenticated user | Yes |
+| GET | `/api/users` | List all users | Yes (Head Admin) |
+| POST | `/api/users/moderators` | Create a Moderator with permissions | Yes (Head Admin) |
+| PATCH | `/api/users/moderators/{id}/permissions` | Update a Moderator's permissions | Yes (Head Admin) |
+| PATCH | `/api/users/{id}/role` | Promote/change a user's role | Yes (Head Admin) |
+| PATCH | `/api/users/{id}/active` | Activate/deactivate a user account | Yes (Head Admin) |
+| GET | `/api/courses` | List courses (published-only for Students/Donors) | Yes |
+| GET | `/api/courses/{id}` | Course detail with modules/lessons | Yes |
+| POST | `/api/courses` | Create a course | Yes (staff) |
+| POST | `/api/courses/{id}/publish` | Publish a course | Yes (staff) |
+| POST | `/api/courses/{id}/unpublish` | Unpublish a course | Yes (staff) |
+| POST | `/api/courses/{id}/modules` | Add a module | Yes (staff) |
+| POST | `/api/courses/modules/{id}/lessons` | Add a lesson | Yes (staff) |
+| POST | `/api/resources/upload` | Upload a file resource (multipart) | Yes (staff) |
+| POST | `/api/resources/link` | Attach an external link resource | Yes (staff) |
+| POST | `/api/enrollments/{course_id}` | Student enrolls in a course | Yes (Student) |
+| GET | `/api/enrollments/me` | Current student's enrollments | Yes |
+| GET | `/api/stats/users` | User counts, role breakdown, registration trend | Yes (Head Admin/Moderator) |
+| GET | `/api/stats/courses` | Course/module/lesson/resource/enrollment totals | Yes (Head Admin/Moderator) |
+| GET | `/api/users/export.csv` | Download all users as CSV | Yes (Head Admin) |
+| GET | `/api/donations/campaigns` | List donation campaigns | Yes |
+| POST | `/api/donations/campaigns` | Create a campaign | Yes (Head Admin/Moderator) |
+| POST | `/api/donations/campaigns/{id}/donate` | Make a donation | Yes (Donor) |
+| GET | `/api/donations/summary` | Total raised, donation count, active campaigns | Yes (Head Admin/Moderator) |
+| GET | `/api/health` | Health check | No |
+
+Full request/response bodies (with examples) are in the Swagger UI at `/docs`.
+
+## Future Improvements
+
+**Not yet built** (from the full feature wishlist — these are large enough to
+warrant their own focused passes rather than being rushed in):
+- Quizzes & assignments (question bank, auto-grading, submissions/review)
+- Certificate generation (PDF + QR verification)
+- Events & announcements module
+- PDF export (CSV export is implemented; PDF needs a rendering library)
+- Audit logs / activity feed, notification center, global search
+- Real-time updates (WebSockets), dark mode, dashboard widget customization
+- Payment gateway integration for real donations (currently records amounts
+  without processing actual payment)
+
+**Smaller items:**
+- Email-based password reset (currently intentionally out of scope)
+- S3 / Cloudinary storage backend implementations
+- Course progress auto-tracking from lesson completion
+- Refresh-token rotation and logout/blacklist endpoint
+- Automated tests (pytest for backend, Vitest/RTL for frontend)
+- CI pipeline (lint + test on every PR)
