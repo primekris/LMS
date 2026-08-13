@@ -1,0 +1,144 @@
+"""
+demoseed.py
+-----------
+Isko run karte hi backend ke existing 'users' table (wahi User model jo
+app/models/user.py me hai) me demo users add ho jayenge — har role ke liye
+(head_admin already seed_head_admin() se ban chuka hoga, is script se
+moderator, instructor, student, donor wale demo users add honge).
+
+Usage (backend/ folder ke andar se):
+    python demoseed.py
+
+Ye script:
+- Same DATABASE_URL use karta hai jo .env / app/core/config.py me set hai
+  (default: sqlite:///./ngo_lms.db)
+- Same bcrypt hashing use karta hai (app/core/security.py -> hash_password)
+- Dobara run karne pe duplicate users nahi banayega (email already exists
+  to skip ho jayega)
+"""
+
+from app.core.database import Base, SessionLocal, engine
+from app.core.security import hash_password
+from app.models.user import ModeratorPermission, User, UserRole
+
+# Yahan apne demo users add/edit kar sakte ho.
+# password sabka same rakha hai testing ke liye — chaho to alag kar sakte ho.
+DEMO_PASSWORD = "Demo@123"
+
+DEMO_USERS = [
+    {
+        "full_name": "Riya Kapoor",
+        "email": "riya.moderator@ngo-lms.local",
+        "role": UserRole.MODERATOR,
+        "permissions": {
+            "can_manage_users": True,
+            "can_manage_courses": True,
+            "can_manage_resources": False,
+            "can_manage_enrollments": True,
+            "can_view_reports": True,
+        },
+    },
+    {
+        "full_name": "Arjun Malhotra",
+        "email": "arjun.instructor@ngo-lms.local",
+        "role": UserRole.INSTRUCTOR,
+    },
+    {
+        "full_name": "Meera Joshi",
+        "email": "meera.instructor@ngo-lms.local",
+        "role": UserRole.INSTRUCTOR,
+    },
+    {
+        "full_name": "Aditya Rao",
+        "email": "aditya.student@ngo-lms.local",
+        "role": UserRole.STUDENT,
+    },
+    {
+        "full_name": "Sanya Kapoor",
+        "email": "sanya.student@ngo-lms.local",
+        "role": UserRole.STUDENT,
+    },
+    {
+        "full_name": "Kabir Sharma",
+        "email": "kabir.student@ngo-lms.local",
+        "role": UserRole.STUDENT,
+    },
+    {
+        "full_name": "Nisha Reddy",
+        "email": "nisha.donor@ngo-lms.local",
+        "role": UserRole.DONOR,
+    },
+    {
+        "full_name": "Devansh Bhatt",
+        "email": "devansh.donor@ngo-lms.local",
+        "role": UserRole.DONOR,
+    },
+]
+
+
+def seed_demo_users() -> None:
+    # Zero-friction local dev ke liye tables ensure kar lo (agar app kabhi
+    # run nahi hua to bhi ye script akele chal jaye).
+    Base.metadata.create_all(bind=engine)
+
+    db = SessionLocal()
+    added, skipped = 0, 0
+
+    try:
+        for u in DEMO_USERS:
+            existing = db.query(User).filter(User.email == u["email"]).first()
+            if existing:
+                skipped += 1
+                continue
+
+            user = User(
+                full_name=u["full_name"],
+                email=u["email"],
+                hashed_password=hash_password(DEMO_PASSWORD),
+                role=u["role"],
+            )
+            db.add(user)
+            db.flush()  # user.id chahiye moderator permissions ke liye
+
+            if u["role"] == UserRole.MODERATOR:
+                perms = u.get("permissions", {})
+                db.add(
+                    ModeratorPermission(
+                        user_id=user.id,
+                        can_manage_users=perms.get("can_manage_users", False),
+                        can_manage_courses=perms.get("can_manage_courses", False),
+                        can_manage_resources=perms.get("can_manage_resources", False),
+                        can_manage_enrollments=perms.get("can_manage_enrollments", False),
+                        can_view_reports=perms.get("can_view_reports", False),
+                    )
+                )
+
+            added += 1
+
+        db.commit()
+    finally:
+        db.close()
+
+    print(f"✅ {added} naye demo users add hue.")
+    if skipped:
+        print(f"⏭️  {skipped} users pehle se maujood the (email match), unhe skip kar diya.")
+    print(f"🔑 Sabka demo password: {DEMO_PASSWORD}")
+
+
+def show_users() -> None:
+    db = SessionLocal()
+    try:
+        users = db.query(User).order_by(User.id).all()
+        print(f"\n📋 Total users in database: {len(users)}\n")
+        print(f"{'ID':<4} {'Name':<20} {'Email':<32} {'Role':<12} Active")
+        print("-" * 85)
+        for u in users:
+            print(f"{u.id:<4} {u.full_name:<20} {u.email:<32} {u.role.value:<12} {u.is_active}")
+    finally:
+        db.close()
+
+
+if __name__ == "__main__":
+    seed_demo_users()
+    show_users()
+    print("\n🎉 Done! Demo users successfully seeded.")
